@@ -1,7 +1,7 @@
 /*
 * Author:  Craig Chandler
 * Based on works by: Petru Marginean http://www.drdobbs.com/cpp/logging-in-c/201804215
-* Site:    https://github.com/craigchandler
+* Site:    https://github.com/craigchandler/loggingTools
 * License: Creative Commons Attribution 3.0 Unported License
 *          http://creativecommons.org/licenses/by/3.0/deed.en_US
 *
@@ -14,10 +14,13 @@
 #include <sstream>
 #include <string>
 #include <stdio.h>
+#include <mutex>
+
+using namespace std;
 
 inline std::string NowTime();
 
-enum TLogLevel { logERROR = 1, logWARNING, logINFO, logDEBUG, logDEBUG1, logDEBUG2, logDEBUG3, logDEBUG4 };
+enum TLogLevel { logNONE, logERROR, logWARNING, logINFO, logDEBUG, logDEBUG1, logDEBUG2, logDEBUG3, logDEBUG4 };
 
 template <typename T>
 class Log
@@ -35,7 +38,6 @@ protected:
 private:
 	Log(const Log&);
 	Log& operator =(const Log&);
-	TLogLevel messageLevel;
 };
 
 template <typename T>
@@ -62,14 +64,14 @@ Log<T>::~Log()
 template <typename T>
 TLogLevel& Log<T>::ReportingLevel()
 {
-	static TLogLevel reportingLevel = logDEBUG4;
+	static TLogLevel reportingLevel = logNONE;
 	return reportingLevel;
 }
 
 template <typename T>
 std::string Log<T>::ToString(TLogLevel level)
 {
-	static const char* const buffer[] = { "ERROR", "WARNING", "INFO", "DEBUG", "DEBUG1", "DEBUG2", "DEBUG3", "DEBUG4" };
+	static const char* const buffer[] = { "NONE", "ERROR", "WARNING", "INFO", "DEBUG", "DEBUG1", "DEBUG2", "DEBUG3", "DEBUG4" };
 	return buffer[level];
 }
 
@@ -101,6 +103,8 @@ class Output2FILE
 public:
 	static FILE*& Stream();
 	static void Output(const std::string& msg);
+private:
+	static mutex _mtxFileOp;
 };
 
 inline FILE*& Output2FILE::Stream()
@@ -111,11 +115,13 @@ inline FILE*& Output2FILE::Stream()
 
 inline void Output2FILE::Output(const std::string& msg)
 {
+  _mtxFileOp.lock();
 	FILE* pStream = Stream();
 	if (!pStream)
 		return;
 	fprintf(pStream, "%s", msg.c_str());
 	fflush(pStream);
+  _mtxFileOp.unlock();
 }
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
@@ -138,8 +144,8 @@ class FILELOG_DECLSPEC FILELog : public Log<Output2FILE> {};
 #endif
 
 #define FILE_LOG(level) \
-    if (level > FILELOG_MAX_LEVEL) ;\
-    else if (level > FILELog::ReportingLevel() || !Output2FILE::Stream()) ; \
+    if (level > FILELOG_MAX_LEVEL ) ;\
+    else if (level > FILELog::ReportingLevel() || !Output2FILE::Stream() || level == logNONE ) ; \
     else FILELog().Get(level)
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
