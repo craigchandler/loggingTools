@@ -155,16 +155,21 @@ class FILELOG_DECLSPEC FILELog : public Log<Output2FILE> {};
 
 inline std::string NowTime()
 {
-  const int MAX_LEN = 200;
-  char buffer[MAX_LEN];
-  if (GetTimeFormatA(LOCALE_USER_DEFAULT, 0, 0,
-    "HH':'mm':'ss", buffer, MAX_LEN) == 0)
+	const int MAX_LEN = 200;
+	char timeBuffer[MAX_LEN];
+	if (GetTimeFormatA(LOCALE_USER_DEFAULT, 0, 0,
+		"HH':'mm':'ss", timeBuffer, MAX_LEN) == 0)
+		return "Error in NowTime()";
+
+  char dateBuffer[MAX_LEN];
+  if (GetDateFormatA(LOCALE_USER_DEFAULT, 0, 0,
+    "yyyyMMdd", dateBuffer, MAX_LEN) == 0)
     return "Error in NowTime()";
 
-  char result[100] = { 0 };
-  static DWORD first = GetTickCount();
-  std::sprintf(result, "%s.%03ld", buffer, (long)(GetTickCount() - first) % 1000);
-  return result;
+	char result[100] = { 0 };
+	static DWORD first = GetTickCount();
+	std::sprintf(result, "%s %s.%03ld", dateBuffer, timeBuffer, (long)(GetTickCount() - first) % 1000);
+	return result;
 }
 
 #else
